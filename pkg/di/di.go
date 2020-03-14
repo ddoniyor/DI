@@ -49,14 +49,7 @@ func NewContainer() *container {
 	}
 }
 
-// регистрация компонентов + их связывание (wire - связывание, autowire - автоматические связывание)
-/*func (c *container) Provide(constructors ...interface{}) {
-	c.register(constructors)
-	c.wire()
-	log.Print(len(c.definitions))
-	log.Print(len(c.components))
-}
-*/
+
 func (c *container) Provide(constructors ...interface{}) (err error) {
 	err = c.register(constructors)
 	if err != nil {
@@ -67,7 +60,6 @@ func (c *container) Provide(constructors ...interface{}) (err error) {
 		return err
 	}
 
-	//TODO delete
 	log.Print(len(c.definitions))
 	log.Print(len(c.components))
 	return nil
@@ -116,17 +108,17 @@ func (c *container) register(constructors []interface{}) (err error) {
 	for _, constructor := range constructors {
 		constructorType := reflect.TypeOf(constructor)
 		if constructorType.Kind() != reflect.Func {
-			panic(fmt.Errorf("%s must be constructor", constructorType.Name()))
+			return fmt.Errorf("%s must be constructor", constructorType.Name())
 		}
 
 		if constructorType.NumOut() != 1 {
-			panic(fmt.Errorf("%s constructor must return only one result", constructorType.Name()))
+			return fmt.Errorf("%s constructor must return only one result", constructorType.Name())
 		}
 
 		outType := constructorType.Out(0)
 
 		if _, exists := c.definitions[outType]; exists {
-			panic(fmt.Errorf("ambiguous definition %s already exists", constructorType.Name()))
+		return fmt.Errorf("ambiguous definition %s already exists", constructorType.Name())
 		}
 
 		paramsCount := constructorType.NumIn()
