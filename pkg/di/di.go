@@ -7,12 +7,10 @@ import (
 	"reflect"
 )
 
-// component factory - фабрика компонентов
-// container - штука, управляющая жизненным циклом компонентов
 type container struct {
-	// 1. Где хранить созданные компоненты
+
 	components map[reflect.Type]interface{}
-	// 2. Где хранить определения, на базе которых создавать компоненты
+
 	definitions map[reflect.Type]definition
 }
 
@@ -24,14 +22,29 @@ func NewContainer() *container {
 }
 
 // регистрация компонентов + их связывание (wire - связывание, autowire - автоматические связывание)
-func (c *container) Provide(constructors ...interface{}) {
+/*func (c *container) Provide(constructors ...interface{}) {
 	c.register(constructors)
 	c.wire()
 	log.Print(len(c.definitions))
 	log.Print(len(c.components))
 }
+*/
+func (c *container) Provide(constructors ...interface{}) (err error) {
+	err = c.register(constructors)
+	if err != nil {
+		return err
+	}
+	err = c.wire()
+	if err != nil {
+		return err
+	}
 
-// см. как сделан errors.As
+	//TODO delete
+	log.Print(len(c.definitions))
+	log.Print(len(c.components))
+	return nil
+}
+
 func (c *container) Component(target interface{}) {
 	if target == nil {
 		panic("errors: target cannot be nil")
@@ -71,7 +84,7 @@ func (c *container) Stop() {
 	}
 }
 
-func (c *container) register(constructors []interface{}) {
+func (c *container) register(constructors []interface{}) (err error) {
 	for _, constructor := range constructors {
 		constructorType := reflect.TypeOf(constructor)
 		if constructorType.Kind() != reflect.Func {
@@ -82,7 +95,7 @@ func (c *container) register(constructors []interface{}) {
 			panic(fmt.Errorf("%s constructor must return only one result", constructorType.Name()))
 		}
 
-		outType := constructorType.Out(0) // constructor must return component
+		outType := constructorType.Out(0)
 
 		if _, exists := c.definitions[outType]; exists {
 			panic(fmt.Errorf("ambiguous definition %s already exists", constructorType.Name()))
@@ -94,9 +107,10 @@ func (c *container) register(constructors []interface{}) {
 			constructor:  reflect.ValueOf(constructor),
 		}
 	}
+	return nil
 }
 
-func (c *container) wire() {
+func (c *container) wire()(err error)  {
 	rest := make(map[reflect.Type]definition, len(c.definitions))
 	for key, value := range c.definitions {
 		rest[key] = value
@@ -106,7 +120,7 @@ func (c *container) wire() {
 		wired := 0
 
 		for key, value := range rest {
-			depsValues := make([]reflect.Value, 0) // те, зависимости, которые уже есть
+			depsValues := make([]reflect.Value, 0)
 			for i := 0; i < value.dependencies; i++ {
 				depType := value.constructor.Type().In(i)
 				if dep, exists := c.components[depType]; exists {
@@ -128,8 +142,8 @@ func (c *container) wire() {
 		}
 
 		if wired == 0 {
-			// TODO: return component list (rest)
-			panic(errors.New("some components has unmet dependencies"))
+			err := errors.New("some components has unmet dependencies")
+			return err
 		}
 	}
 }
